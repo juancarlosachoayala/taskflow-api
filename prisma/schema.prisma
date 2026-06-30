@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(uuid()) @map("id")
+  name         String    @map("name")
+  email        String    @unique @map("email")
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  projects Project[] @relation("ProjectOwner")
+  tasks    Task[]    @relation("TaskAssignee")
+  comments Comment[] @relation("CommentAuthor")
+
+  @@index([email])
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(uuid()) @map("id")
+  name        String   @map("name")
+  description String?  @map("description")
+  ownerId     String   @map("owner_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  owner User   @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  tasks Task[] @relation("ProjectTasks")
+
+  @@index([ownerId])
+  @@map("projects")
+}
+
+model Task {
+  id          String     @id @default(uuid()) @map("id")
+  title       String     @map("title")
+  description String?    @map("description")
+  status      TaskStatus @default(TODO) @map("status")
+  projectId   String     @map("project_id")
+  assignedTo  String?    @map("assigned_to")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  project   Project   @relation("ProjectTasks", fields: [projectId], references: [id], onDelete: Cascade)
+  assignee  User?     @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  comments  Comment[] @relation("TaskComments")
+
+  @@index([projectId])
+  @@index([assignedTo])
+  @@map("tasks")
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @map("id")
+  content   String   @map("content")
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("CommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("comments")
+}
